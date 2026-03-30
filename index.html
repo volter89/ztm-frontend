@@ -34,16 +34,26 @@
     .suggestion:hover {
       background: #333;
     }
+
+    /* 🔥 dropdown fix */
+    #startSuggestions, #endSuggestions {
+      background: #222;
+      border-radius: 10px;
+      margin-top: -5px;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 999;
+    }
   </style>
 </head>
 <body>
 
 <h2>🚍 ZTM Planer</h2>
 
-<input id="start" placeholder="Przystanek startowy" oninput="showSuggestions(this.value, 'start')">
+<input id="start" placeholder="Przystanek startowy">
 <div id="startSuggestions"></div>
 
-<input id="end" placeholder="Przystanek końcowy" oninput="showSuggestions(this.value, 'end')">
+<input id="end" placeholder="Przystanek końcowy">
 <div id="endSuggestions"></div>
 
 <input id="ride" placeholder="Czas jazdy (min)">
@@ -57,35 +67,54 @@
 <script>
 let stops = [];
 
-// pobierz przystanki z backendu
+// 🔥 pobierz przystanki
 fetch("https://ztm-backend-vg5c.onrender.com/stops")
   .then(res => res.json())
-  .then(data => stops = data);
+  .then(data => {
+    console.log("Przystanki załadowane:", data.length);
+    stops = data;
+  });
 
-// autocomplete
+// 🔍 AUTOCOMPLETE
 function showSuggestions(value, type) {
   const box = document.getElementById(type + "Suggestions");
+
+  if (!box) return;
+
   box.innerHTML = "";
 
-  if (!value) return;
+  if (!value || stops.length === 0) {
+    return;
+  }
 
-  const filtered = stops.filter(s =>
-    s.toLowerCase().includes(value.toLowerCase())
-  ).slice(0, 6);
+  const filtered = stops
+    .filter(s => s.toLowerCase().includes(value.toLowerCase()))
+    .slice(0, 8);
 
   filtered.forEach(s => {
     const div = document.createElement("div");
     div.className = "suggestion";
     div.innerText = s;
+
     div.onclick = () => {
       document.getElementById(type).value = s;
       box.innerHTML = "";
     };
+
     box.appendChild(div);
   });
 }
 
-// planowanie
+// 🔥 działa na PC i mobile
+document.getElementById("start").addEventListener("input", (e) => {
+  showSuggestions(e.target.value, "start");
+});
+
+document.getElementById("end").addEventListener("input", (e) => {
+  showSuggestions(e.target.value, "end");
+});
+
+// 🚍 planowanie
 async function plan() {
 
   const start = document.getElementById("start").value;
