@@ -34,15 +34,13 @@
     .suggestion:hover {
       background: #333;
     }
-
-    /* 🔥 dropdown fix */
     #startSuggestions, #endSuggestions {
       background: #222;
       border-radius: 10px;
-      margin-top: -5px;
-      margin-bottom: 10px;
       position: relative;
       z-index: 999;
+      max-height: 200px;
+      overflow-y: auto;
     }
   </style>
 </head>
@@ -60,36 +58,41 @@
 <input id="transfer" placeholder="Czas przesiadki (min)">
 <input id="total" placeholder="Łączny czas pracy (min)">
 
-<button onclick="plan()">GENERUJ TRASĘ</button>
+<button id="btn">GENERUJ TRASĘ</button>
 
 <div id="result"></div>
 
 <script>
 let stops = [];
+let stopsLoaded = false;
 
 // 🔥 pobierz przystanki
 fetch("https://ztm-backend-vg5c.onrender.com/stops")
   .then(res => res.json())
   .then(data => {
-    console.log("Przystanki załadowane:", data.length);
     stops = data;
+    stopsLoaded = true;
+    console.log("✅ Przystanki:", stops.length);
+  })
+  .catch(err => {
+    console.error("❌ Błąd stops:", err);
   });
 
-// 🔍 AUTOCOMPLETE
+// 🔍 autocomplete
 function showSuggestions(value, type) {
   const box = document.getElementById(type + "Suggestions");
-
-  if (!box) return;
-
   box.innerHTML = "";
 
-  if (!value || stops.length === 0) {
+  if (!value) return;
+
+  if (!stopsLoaded) {
+    box.innerHTML = "<div class='suggestion'>⏳ Ładowanie...</div>";
     return;
   }
 
   const filtered = stops
     .filter(s => s.toLowerCase().includes(value.toLowerCase()))
-    .slice(0, 8);
+    .slice(0, 6);
 
   filtered.forEach(s => {
     const div = document.createElement("div");
@@ -105,18 +108,17 @@ function showSuggestions(value, type) {
   });
 }
 
-// 🔥 działa na PC i mobile
-document.getElementById("start").addEventListener("input", (e) => {
+// 🔥 eventy input
+document.getElementById("start").addEventListener("input", e => {
   showSuggestions(e.target.value, "start");
 });
 
-document.getElementById("end").addEventListener("input", (e) => {
+document.getElementById("end").addEventListener("input", e => {
   showSuggestions(e.target.value, "end");
 });
 
-// 🚍 planowanie
+// 🚍 PLAN
 async function plan() {
-
   const start = document.getElementById("start").value;
   const end = document.getElementById("end").value;
   const ride = document.getElementById("ride").value;
@@ -129,31 +131,36 @@ async function plan() {
     return;
   }
 
-try {
-  const res = await fetch("https://ztm-backend-vg5c.onrender.com/plan", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      start,
-      end,
-      ride_time: +ride,
-      transfer_time: +transfer,
-      total_time: +total
-    })
-  });
+  document.getElementById("result").innerText = "⏳ Szukam trasy...";
 
-  if (!res.ok) throw new Error("Błąd serwera");
+  try {
+    const res = await fetch("https://ztm-backend-vg5c.onrender.com/plan", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        start,
+        end,
+        ride_time: +ride,
+        transfer_time: +transfer,
+        total_time: +total
+      })
+    });
 
-  const data = await res.json();
+    if (!res.ok) throw new Error();
 
-  document.getElementById("result").innerText =
-    data.route.join("\n") + "\n\n⏱ " + data.total_time + " min";
+    const data = await res.json();
 
-} catch (err) {
-  document.getElementById("result").innerText =
-    "❌ Backend odpowiada zbyt wolno lub błąd serwera";
+    document.getElementById("result").innerText =
+      data.route.join("\n") + "\n\n⏱ " + data.total_time + " min";
+
+  } catch (err) {
+    document.getElementById("result").innerText =
+      "❌ Błąd połączenia z backendem";
+  }
 }
-}
+
+// 🔥 klik przycisku
+document.getElementById("btn").addEventListener("click", plan);
 </script>
 
 </body>
