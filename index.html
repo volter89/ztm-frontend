@@ -129,28 +129,30 @@ async function plan() {
     return;
   }
 
-  try {
-    const res = await fetch("https://ztm-backend-vg5c.onrender.com/plan", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        start,
-        end,
-        ride_time: +ride,
-        transfer_time: +transfer,
-        total_time: +total
-      })
-    });
+try {
+  const res = await fetch("https://ztm-backend-vg5c.onrender.com/plan", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      start,
+      end,
+      ride_time: +ride,
+      transfer_time: +transfer,
+      total_time: +total
+    })
+  });
 
-    const data = await res.json();
+  if (!res.ok) throw new Error("Błąd serwera");
 
-    document.getElementById("result").innerText =
-      data.route.join("\n") + "\n\n⏱ " + data.total_time + " min";
+  const data = await res.json();
 
-  } catch (err) {
-    document.getElementById("result").innerText =
-      "❌ Błąd połączenia z serwerem";
-  }
+  document.getElementById("result").innerText =
+    data.route.join("\n") + "\n\n⏱ " + data.total_time + " min";
+
+} catch (err) {
+  document.getElementById("result").innerText =
+    "❌ Backend odpowiada zbyt wolno lub błąd serwera";
+}
 }
 </script>
 
