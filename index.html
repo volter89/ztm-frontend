@@ -50,6 +50,7 @@ button {
 <input id="startTime" type="time">
 <input id="endTime" type="time">
 
+<input id="ride" placeholder="Min czas w autobusie (min)">
 <input id="transfer" placeholder="Czas przesiadki (min)">
 
 <button onclick="plan()">GENERUJ</button>
@@ -87,22 +88,27 @@ function showSuggestions(value, type) {
   });
 }
 
+function toMinutes(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
 async function plan() {
 
   const start = document.getElementById("start").value;
   const end = document.getElementById("end").value;
   const startTime = document.getElementById("startTime").value;
   const endTime = document.getElementById("endTime").value;
+  const ride = document.getElementById("ride").value;
   const transfer = document.getElementById("transfer").value;
 
-  if (!start || !end || !startTime || !endTime || !transfer) {
+  if (!start || !end || !startTime || !endTime || !ride || !transfer) {
     document.getElementById("result").innerText = "❌ Uzupełnij wszystkie pola";
     return;
   }
 
   const startMin = toMinutes(startTime);
   const endMin = toMinutes(endTime);
-
   const total = endMin - startMin;
 
   try {
@@ -112,7 +118,7 @@ async function plan() {
       body: JSON.stringify({
         start,
         end,
-        ride_time: 0,
+        ride_time: +ride,
         transfer_time: +transfer,
         total_time: total,
         start_time: startMin
@@ -122,16 +128,11 @@ async function plan() {
     const data = await res.json();
 
     document.getElementById("result").innerText =
-      data.route.join("\n") + "\n\n⏱ " + total + " min";
+      data.route.join("\n\n") + "\n\n⏱ " + total + " min";
 
   } catch {
     document.getElementById("result").innerText = "❌ Błąd serwera";
   }
-}
-
-function toMinutes(t) {
-  const [h, m] = t.split(":").map(Number);
-  return h*60 + m;
 }
 </script>
 
