@@ -1,98 +1,77 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZTM Planer</title>
-  <style>
-    body {
-      font-family: Arial;
-      background: #111;
-      color: white;
-      padding: 20px;
-    }
-    input, button {
-      width: 100%;
-      padding: 15px;
-      margin: 8px 0;
-      border-radius: 10px;
-      border: none;
-    }
-    button {
-      background: #00c853;
-      color: white;
-      font-size: 16px;
-    }
-    #result {
-      margin-top: 20px;
-      white-space: pre-line;
-    }
-    .suggestion {
-      padding: 10px;
-      border-bottom: 1px solid #333;
-      cursor: pointer;
-    }
-    .suggestion:hover {
-      background: #333;
-    }
-    #startSuggestions, #endSuggestions {
-      background: #222;
-      border-radius: 10px;
-      position: relative;
-      z-index: 999;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-  </style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZTM Planer</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #111;
+  color: white;
+  padding: 20px;
+}
+
+input, button {
+  width: 100%;
+  padding: 15px;
+  margin: 8px 0;
+  border-radius: 10px;
+  border: none;
+}
+
+button {
+  background: #00c853;
+  color: white;
+}
+
+.suggestion {
+  padding: 10px;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  background: #333;
+}
+</style>
 </head>
+
 <body>
 
 <h2>🚍 ZTM Planer</h2>
 
-<input id="start" placeholder="Przystanek startowy">
+<input id="start" placeholder="Start" oninput="showSuggestions(this.value, 'start')">
 <div id="startSuggestions"></div>
 
-<input id="end" placeholder="Przystanek końcowy">
+<input id="end" placeholder="Koniec" oninput="showSuggestions(this.value, 'end')">
 <div id="endSuggestions"></div>
 
-<input id="ride" placeholder="Czas jazdy (min)">
-<input id="transfer" placeholder="Czas przesiadki (min)">
-<input id="total" placeholder="Łączny czas pracy (min)">
+<input id="startTime" type="time">
+<input id="endTime" type="time">
 
-<button id="btn">GENERUJ TRASĘ</button>
+<input id="transfer" placeholder="Czas przesiadki (min)">
+
+<button onclick="plan()">GENERUJ</button>
 
 <div id="result"></div>
 
 <script>
 let stops = [];
-let stopsLoaded = false;
 
-// 🔥 pobierz przystanki
-fetch("https://ztm-backend-vg5c.onrender.com/stops")
+fetch("https://ztm-backend.vercel.app/stops")
   .then(res => res.json())
-  .then(data => {
-    stops = data;
-    stopsLoaded = true;
-    console.log("✅ Przystanki:", stops.length);
-  })
-  .catch(err => {
-    console.error("❌ Błąd stops:", err);
-  });
+  .then(data => stops = data);
 
-// 🔍 autocomplete
 function showSuggestions(value, type) {
   const box = document.getElementById(type + "Suggestions");
   box.innerHTML = "";
 
   if (!value) return;
 
-  if (!stopsLoaded) {
-    box.innerHTML = "<div class='suggestion'>⏳ Ładowanie...</div>";
-    return;
-  }
-
   const filtered = stops
     .filter(s => s.toLowerCase().includes(value.toLowerCase()))
-    .slice(0, 6);
+    .slice(0, 8);
 
   filtered.forEach(s => {
     const div = document.createElement("div");
@@ -108,59 +87,52 @@ function showSuggestions(value, type) {
   });
 }
 
-// 🔥 eventy input
-document.getElementById("start").addEventListener("input", e => {
-  showSuggestions(e.target.value, "start");
-});
-
-document.getElementById("end").addEventListener("input", e => {
-  showSuggestions(e.target.value, "end");
-});
-
-// 🚍 PLAN
 async function plan() {
+
   const start = document.getElementById("start").value;
   const end = document.getElementById("end").value;
-  const ride = document.getElementById("ride").value;
+  const startTime = document.getElementById("startTime").value;
+  const endTime = document.getElementById("endTime").value;
   const transfer = document.getElementById("transfer").value;
-  const total = document.getElementById("total").value;
 
-  if (!start || !end || !ride || !transfer || !total) {
-    document.getElementById("result").innerText =
-      "❌ Uzupełnij wszystkie pola!";
+  if (!start || !end || !startTime || !endTime || !transfer) {
+    document.getElementById("result").innerText = "❌ Uzupełnij wszystkie pola";
     return;
   }
 
-  document.getElementById("result").innerText = "⏳ Szukam trasy...";
+  const startMin = toMinutes(startTime);
+  const endMin = toMinutes(endTime);
+
+  const total = endMin - startMin;
 
   try {
-    const res = await fetch("https://ztm-backend-vg5c.onrender.com/plan", {
+    const res = await fetch("https://ztm-backend.vercel.app/plan", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         start,
         end,
-        ride_time: +ride,
+        ride_time: 0,
         transfer_time: +transfer,
-        total_time: +total
+        total_time: total,
+        start_time: startMin
       })
     });
-
-    if (!res.ok) throw new Error();
 
     const data = await res.json();
 
     document.getElementById("result").innerText =
-      data.route.join("\n") + "\n\n⏱ " + data.total_time + " min";
+      data.route.join("\n") + "\n\n⏱ " + total + " min";
 
-  } catch (err) {
-    document.getElementById("result").innerText =
-      "❌ Błąd połączenia z backendem";
+  } catch {
+    document.getElementById("result").innerText = "❌ Błąd serwera";
   }
 }
 
-// 🔥 klik przycisku
-document.getElementById("btn").addEventListener("click", plan);
+function toMinutes(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h*60 + m;
+}
 </script>
 
 </body>
